@@ -1,6 +1,10 @@
 # Predict_US_car_price
 # 🚗 US Used Car Price Predictor
 
+<p align="center">
+  <img src="assets/app_ui.png" alt="US Used Car Price Predictor UI" width="900">
+</p>
+
 ## 📌 Project Overview
 This project builds a robust machine learning pipeline to predict the market price of used cars in the United States. Leveraging a dataset of over **3 million listings**, the study benchmarks a linear baseline (**Ridge Regression**) against a non-linear ensemble method (**Histogram Gradient Boosting**).
 
