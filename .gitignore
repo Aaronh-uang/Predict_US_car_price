@@ -7,3 +7,6 @@ __pycache__/
 
 # Ignore large data files (prevents accidental upload errors)
 *.csv
+
+# VS Code Dev Containers
+.devcontainer/
