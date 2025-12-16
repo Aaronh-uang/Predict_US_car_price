@@ -31,16 +31,16 @@ with st.form("prediction_form"):
         # Categorical Inputs (You must match the options in your training data)
         # Note: These lists should be populated based on your actual data 
         # For this demo, we use common examples.
-        make_name = st.selectbox("Make", ['Jeep' 'Land Rover' 'Mazda' 'Alfa Romeo' 'BMW' 'Hyundai' 'Chevrolet'
-        'Lexus' 'Subaru' 'Cadillac' 'Chrysler' 'Dodge' 'Mercedes-Benz' 'Nissan'
-        'Honda' 'Kia' 'Ford' 'Lincoln' 'Audi' 'Volkswagen' 'RAM' 'Porsche'
-        'Jaguar' 'Toyota' 'INFINITI' 'GMC' 'Acura' 'Maserati' 'FIAT' 'Volvo'
-        'Mitsubishi' 'Buick' 'Mercury' 'Scion' 'Saab' 'MINI' 'Ferrari' 'Genesis'
-        'Saturn' 'Bentley' 'Suzuki' 'Tesla' 'Fisker' 'Pontiac' 'Lamborghini'
-        'smart' 'Hummer' 'Rolls-Royce' 'Lotus' 'Spyker' 'McLaren' 'Aston Martin'
-        'Maybach' 'Freightliner' 'Isuzu' 'Oldsmobile' 'Plymouth' 'Pagani' 'Karma'
-        'AM General' 'Geo' 'SRT' 'VPG' 'Eagle' 'Bugatti' 'Daewoo' 'Ariel'
-        'Shelby' 'Mobility Ventures' 'Saleen' 'Koenigsegg' 'Rover'])
+        make_name = st.selectbox("Make", ['Jeep', 'Land Rover', 'Mazda', 'Alfa Romeo', 'BMW', 'Hyundai', 'Chevrolet',
+        'Lexus', 'Subaru', 'Cadillac', 'Chrysler', 'Dodge', 'Mercedes-Benz', 'Nissan',
+        'Honda', 'Kia', 'Ford', 'Lincoln', 'Audi', 'Volkswagen', 'RAM', 'Porsche',
+        'Jaguar', 'Toyota', 'INFINITI', 'GMC', 'Acura', 'Maserati', 'FIAT', 'Volvo',
+        'Mitsubishi', 'Buick', 'Mercury', 'Scion', 'Saab', 'MINI', 'Ferrari', 'Genesis',
+        'Saturn', 'Bentley', 'Suzuki', 'Tesla', 'Fisker', 'Pontiac', 'Lamborghini',
+        'smart', 'Hummer', 'Rolls-Royce', 'Lotus', 'Spyker', 'McLaren', 'Aston Martin',
+        'Maybach', 'Freightliner', 'Isuzu', 'Oldsmobile', 'Plymouth', 'Pagani', 'Karma',
+        'AM General', 'Geo', 'SRT', 'VPG', 'Eagle', 'Bugatti', 'Daewoo', 'Ariel',
+        'Shelby', 'Mobility Ventures', 'Saleen', 'Koenigsegg', 'Rover'])
         body_type = st.selectbox("Body Type", ["Sedan", "SUV / Crossover", "Truck", "Coupe", "Hatchback", "Van"])
         wheel_system = st.selectbox("Drivetrain", ["FWD", "AWD", "RWD", "4WD"])
         fuel_type = st.selectbox("Fuel Type", ["Gasoline", "Diesel", "Hybrid", "Electric"])
