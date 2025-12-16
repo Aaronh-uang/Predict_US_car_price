@@ -6,6 +6,11 @@ This project builds a robust machine learning pipeline to predict the market pri
 
 The final model achieves a Mean Absolute Error (MAE) of approximately **$3,280**, effectively capturing complex non-linear relationships such as depreciation curves and mileage penalties. The project is deployed as an interactive web application using **Streamlit**.
 
+## Data Source
+Note: 
+* The dataset is too large to host on GitHub. Please download used_cars_data.csv from Kaggle(https://www.kaggle.com/datasets/ananaymital/us-used-cars-dataset/data) and place it in the root directory. Then change the path to the file.
+* The file is 9 GB, quite big.
+
 ## 🚀 Key Features
 * **Data Pipeline:** rigorous cleaning process to handle noise (VINs, descriptions), impute missing values, and filter realistic price/mileage outliers.
 * **Feature Engineering:**
