@@ -43,4 +43,4 @@ The final model achieves a Mean Absolute Error (MAE) of approximately **$3,280**
     ```
 
 ---
-*Created by Aaron Huang*
+*Created by Aaron Huang, ChatGPT made the README file*
