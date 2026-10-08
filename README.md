@@ -52,4 +52,4 @@ Note:
     ```
 
 ---
-*Created by Aaron Huang, ChatGPT made the README file*
+*Created by Aaron Huang*
