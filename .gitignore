@@ -1,12 +1,17 @@
-# Ignore Mac system files
+# Mac system files
 .DS_Store
 
-# Ignore Python cache
+# Python
 __pycache__/
 *.py[cod]
+.venv/
 
-# Ignore large data files (prevents accidental upload errors)
+# Raw and intermediate data (the Kaggle CSV is 9 GB)
+data/
 *.csv
 
 # VS Code Dev Containers
 .devcontainer/
+
+# artifacts/ IS committed: model.txt + meta.json let the weekly GitHub Action
+# refresh today's-market prices without retraining.

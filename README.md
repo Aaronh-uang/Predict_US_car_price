@@ -1,55 +1,100 @@
-# Predict_US_car_price
-# 🚗 US Used Car Price Predictor
-Predictor：https://predictuscarprice-i7zzs2rqgb3mamdkazgzpb.streamlit.app
-<p align="center">
-  <img src="assets/app_ui.png" alt="US Used Car Price Predictor UI" width="900">
-</p>
+# US Used Car Price Estimator
 
-## 📌 Project Overview
-This project builds a robust machine learning pipeline to predict the market price of used cars in the United States. Leveraging a dataset of over **3 million listings**, the study benchmarks a linear baseline (**Ridge Regression**) against a non-linear ensemble method (**Histogram Gradient Boosting**).
+Estimate what a used car is worth from its year, make, model, trim, mileage and history, or paste a VIN. The site is fully static: the trained model runs **in your browser**. There's no server to fall asleep, nothing to maintain, and it's hosted free on GitHub Pages.
 
-The final model achieves a Mean Absolute Error (MAE) of approximately **$3,280**, effectively capturing complex non-linear relationships such as depreciation curves and mileage penalties. The project is deployed as an interactive web application using **Streamlit**.
+**Live site:** `https://aaronh-uang.github.io/Predict_US_car_price/` (after the first deploy)
 
-## Data Source
-Note: 
-* The dataset is too large to host on GitHub. Please download used_cars_data.csv from Kaggle(https://www.kaggle.com/datasets/ananaymital/us-used-cars-dataset/data) and place it in the root directory. Then change the path to the file.
-* The file is 9 GB, quite big.
+## What it does
 
-## 🚀 Key Features
-* **Data Pipeline:** rigorous cleaning process to handle noise (VINs, descriptions), impute missing values, and filter realistic price/mileage outliers.
-* **Feature Engineering:**
-    * *Temporal Analysis:* Converted model years to "Vehicle Age" relative to the current year.
-    * *Text Extraction:* Parsed cylinder counts and simplified transmission types from unstructured text.
-* **Model Architecture:**
-    * *Baseline:* Ridge Regression with One-Hot Encoding for categorical features.
-    * *Champion:* Histogram Gradient Boosting Regressor (HGBR) utilizing native categorical support and Ordinal Encoding.
-* **Interpretability:** Permutation Feature Importance analysis identifies **Mileage**, **Horsepower**, and **Vehicle Age** as the primary drivers of price.
+- **Make → model → trim picker.** Picking a trim auto-fills engine, horsepower, drivetrain and mpg from real listings.
+- **VIN lookup.** Decodes the VIN through NHTSA's free vPIC API, then matches it to the closest make, model and trim in the data.
+- **Likely price range.** An 80% range calibrated on held-out cars, not just one number.
+- **Depreciation charts.** Value by mileage, and projected value over the next 8 years at your current pace of driving.
+- **Today's market vs 2020 market.** The model learns from 2020 listings. A per-model adjustment from current ForCar asking prices brings estimates up to date, and it refreshes weekly on its own.
 
-## 🛠️ Tech Stack
-* **Python** (Pandas, NumPy)
-* **Scikit-Learn** (Pipelines, HGBR, Ridge, Preprocessing)
-* **Streamlit** (Web App Interface)
-* **Matplotlib / Seaborn** (Data Visualization)
+## How it works
 
-## 📊 Results Summary
-| Model | RMSE (Log Scale) | MAE (USD) | RMSE (USD) |
-| :--- | :--- | :--- | :--- |
-| **Ridge Regression** | 0.284 | ~$6,147 | ~$13,258 |
-| **Gradient Boosting** | **0.167** | **~$3,280** | **~$9,914** |
+```
+Kaggle CSV (9 GB, 3M listings)
+   │  training/prep.py       keep ~20 columns, used cars only, dedupe VINs → data/listings.parquet
+   ▼
+training/train.py            LightGBM on log(price); make/model/trim as real categoricals;
+   │                         price can only fall with mileage/age/owners/damage (monotone);
+   │                         80% range from a held-out calibration split
+   ▼
+training/export.py           trees → web/data/model.json, specs → web/data/catalog/*.json
+   ▼
+training/calibrate.py        ForCar today's prices by make/model/model year → web/data/calibration.json
+   ▼
+web/                         static site: index.html + js/ (no build step, no dependencies)
+```
 
-## 💻 How to Run Locally
-1.  Clone the repository:
-    ```bash
-    git clone [https://github.com/Aaronh-uang/Predict_US_car_price.git](https://github.com/Aaronh-uang/Predict_US_car_price.git)
-    ```
-2.  Install dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
-3.  Run the Streamlit app:
-    ```bash
-    streamlit run app.py
-    ```
+The browser evaluator (`web/js/model.js`) follows LightGBM's own decision rules, and `tests/parity.mjs` checks it against LightGBM's predictions (they agree to within 1e-6 in log-price).
+
+### Today's-market adjustment
+
+For every ForCar row (for example "2019 Toyota Camry: avg $X at Y miles, N listings"), the model predicts what that car would have listed for in 2020 at the same age and mileage. The log ratio becomes three parts:
+
+`today = 2020 estimate × exp(age_factor[age] + make_offset + model_offset)`
+
+Offsets are shrunk toward zero when a make or model has few listings. It corrects price *levels* per model, while trim, mileage and history effects still come from the 2020 data.
+
+## Run it on your Mac
+
+Requirements: Python 3.11+, Node 18+ (only for the test), and about 12 GB free disk.
+
+```bash
+# 1. get the data (9 GB) - either download the zip from
+#    https://www.kaggle.com/datasets/ananaymital/us-used-cars-dataset
+#    and put used_cars_data.csv in ./data/, or use the Kaggle CLI:
+pip install kaggle   # needs ~/.kaggle/kaggle.json (Kaggle > Settings > API > Create token)
+kaggle datasets download -d ananaymital/us-used-cars-dataset -p data --unzip
+
+# 2. set up and run everything
+make setup          # .venv + numpy, pandas, pyarrow, lightgbm
+make all            # prep → train → export → calibrate → parity test
+make serve          # http://localhost:8000
+```
+
+`make prep` takes 10–20 minutes the first time. After that, `make train export calibrate` is a few minutes. For quick iterations, run `.venv/bin/python training/train.py --sample 300000`.
+
+If `import lightgbm` fails with a `libomp` error on macOS, run `brew install libomp`.
+
+Want to try the pipeline before downloading? `make demo` builds everything from a small fake dataset. It overwrites `web/data/`, so run `make all` with the real CSV afterwards.
+
+## Deploy
+
+1. Commit `web/data/` and `artifacts/` after training. Don't commit `data/`, which is git-ignored.
+2. On GitHub: **Settings → Pages → Source: GitHub Actions**.
+3. Push to `main`. `.github/workflows/deploy.yml` runs the parity test and publishes `web/`.
+
+Every Monday the same workflow downloads ForCar's latest prices, re-runs `calibrate.py`, commits the new `calibration.json` and redeploys. You can also trigger it by hand from the Actions tab.
+
+## Project layout
+
+```
+training/   common.py (features, shared helpers) · prep.py · train.py · export.py · calibrate.py
+web/        index.html · styles.css · js/{app,model,chart,vin}.js · data/ (generated)
+tests/      parity.mjs (JS vs LightGBM) · make_synthetic.py (fake data for `make demo`)
+artifacts/  model.txt · meta.json · parity_fixture.json (generated, committed)
+```
+
+## Fixes from the first version
+
+- The app sent model, trim and engine type as `"Unknown"`, so a Camry and a Corolla priced almost the same. They're now real inputs.
+- The categories were integer codes treated as numbers (alphabetical order of 8,427 trims). They're now native categoricals.
+- Manual transmissions were mapped to "automatic". The raw `A` / `M` / `CVT` / `Dual Clutch` values are now kept.
+- "Truck" wasn't a training category ("Pickup Truck" is), and torque and owner count inputs were ignored. Every input on the page now reaches the model.
+- Days on market was an input. A buyer doesn't know it, so it was dropped.
+- Age is now measured from each listing's date, not a fixed year, and duplicate VINs are removed so the same car can't be in both train and test.
+
+## Data and credits
+
+- Training data: [US Used Cars dataset](https://www.kaggle.com/datasets/ananaymital/us-used-cars-dataset) (Kaggle), used-car dealer listings from about 2020.
+- Current prices: [ForCar open data](https://forcar.org/open-data/), CC BY 4.0, average asking price by make/model/model year, rebuilt daily.
+- VIN decoding: [NHTSA vPIC API](https://vpic.nhtsa.dot.gov/api/).
+
+Estimates are statistical, not an appraisal. Condition, options, color and location also move real prices.
 
 ---
-*Created by Aaron Huang*
+Created by Yonglang (Aaron) Huang · MIT License

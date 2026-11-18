@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>US Used Car Price Estimator</title>
+  <meta name="description" content="Estimate a used car's market price from its make, model, trim, year, mileage and history. Runs entirely in your browser.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚗</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <h1>US Used Car Price Estimator</h1>
+      <p class="sub">Pick a car or paste a VIN. The estimate updates as you type and is calculated in your browser.</p>
+    </div>
+  </header>
+
+  <main class="wrap grid">
+    <section class="card form" aria-labelledby="car-h">
+      <h2 id="car-h">Your car</h2>
+
+      <div class="vin">
+        <label for="vin">VIN <span class="muted">(optional)</span></label>
+        <div class="row">
+          <input id="vin" placeholder="17 characters, e.g. 4T1B11HK5KU123456" maxlength="17" autocomplete="off" spellcheck="false">
+          <button id="vin-go" type="button">Decode</button>
+        </div>
+        <p id="vin-status" class="status" role="status"></p>
+      </div>
+
+      <div class="fields three">
+        <label>Year<select id="year"></select></label>
+        <label>Make<select id="make"></select></label>
+        <label>Model<select id="model"></select></label>
+      </div>
+
+      <div class="fields trim-row">
+        <label>Trim<select id="trim"></select></label>
+        <label>Mileage<input id="mileage" inputmode="numeric" autocomplete="off"></label>
+      </div>
+
+      <h3>History <span class="muted">— leave as "Not sure" if you don't know</span></h3>
+      <div class="fields three">
+        <label>Accidents
+          <select id="accidents">
+            <option value="">Not sure</option>
+            <option value="0">None reported</option>
+            <option value="1">1 or more</option>
+          </select>
+        </label>
+        <label>Owners
+          <select id="owners">
+            <option value="">Not sure</option>
+            <option value="1">1</option><option value="2">2</option>
+            <option value="3">3</option><option value="4">4 or more</option>
+          </select>
+        </label>
+        <label>Title
+          <select id="title">
+            <option value="">Not sure</option>
+            <option value="clean">Clean</option>
+            <option value="frame">Frame damage</option>
+            <option value="salvage">Salvage / rebuilt</option>
+          </select>
+        </label>
+      </div>
+
+      <details id="specs">
+        <summary>Specs <span class="muted" id="specs-note">auto-filled from the trim</span></summary>
+        <div class="fields three">
+          <label>Body<select data-spec="body_type"></select></label>
+          <label>Drivetrain<select data-spec="wheel_system"></select></label>
+          <label>Fuel<select data-spec="fuel_type"></select></label>
+          <label>Transmission<select data-spec="transmission"></select></label>
+          <label>Engine<select data-spec="engine_type"></select></label>
+          <label>Horsepower<input data-spec="horsepower" inputmode="numeric"></label>
+          <label>Displacement (cc)<input data-spec="engine_displacement" inputmode="numeric"></label>
+          <label>City mpg<input data-spec="city_fuel_economy" inputmode="numeric"></label>
+          <label>Highway mpg<input data-spec="highway_fuel_economy" inputmode="numeric"></label>
+        </div>
+      </details>
+    </section>
+
+    <section class="card result" aria-labelledby="res-h" aria-live="polite">
+      <div class="result-head">
+        <h2 id="res-h">Estimated price</h2>
+        <div class="seg" role="radiogroup" aria-label="Market">
+          <button type="button" role="radio" data-market="today" aria-checked="true">Today's market</button>
+          <button type="button" role="radio" data-market="2020" aria-checked="false">2020 market</button>
+        </div>
+      </div>
+      <p class="car-name" id="car-name"></p>
+      <p class="price" id="price">—</p>
+      <p class="range" id="range"></p>
+      <p class="market-note" id="market-note"></p>
+      <ul class="notes" id="notes"></ul>
+
+      <div class="chart-head">
+        <h3 id="chart-title">Value by mileage</h3>
+        <div class="seg small" role="radiogroup" aria-label="Chart">
+          <button type="button" role="radio" data-chart="mileage" aria-checked="true">By mileage</button>
+          <button type="button" role="radio" data-chart="future" aria-checked="false">Next 8 years</button>
+        </div>
+      </div>
+      <div id="chart" class="chart"></div>
+      <p class="chart-note"><span class="key" aria-hidden="true"></span>Shaded: likely range. <span id="chart-note"></span></p>
+      <details class="table-view">
+        <summary>Show as table</summary>
+        <table id="chart-table"></table>
+      </details>
+    </section>
+
+    <section class="card about" aria-labelledby="about-h">
+      <h2 id="about-h">How it works</h2>
+      <div id="about"></div>
+    </section>
+  </main>
+
+  <footer class="wrap foot">
+    <p>Estimates are statistical and not an offer or appraisal. Condition, options, color and location also move real prices.</p>
+    <p id="sources"></p>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
