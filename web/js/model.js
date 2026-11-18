@@ -106,7 +106,10 @@ export class PriceModel {
     const c = this.calibration;
     if (!c) return 1;
     const a = Math.max(0, Math.min(c.age_factor.length - 1, Math.round(age)));
-    return Math.exp(c.age_factor[a] + (c.make_offset[make] || 0) + (c.model_offset[modelKey] || 0));
+    // offsets are per age band ([under 8, 8-15, 16+] years); older files use one number
+    const band = (c.age_bands || []).filter((b) => age >= b).length;
+    const pick = (v) => (Array.isArray(v) ? v[band] ?? 0 : v || 0);
+    return Math.exp(c.age_factor[a] + pick(c.make_offset[make]) + pick(c.model_offset[modelKey]));
   }
 
   /**

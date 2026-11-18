@@ -33,11 +33,15 @@ The browser evaluator (`web/js/model.js`) follows LightGBM's own decision rules,
 
 ### Today's-market adjustment
 
-For every ForCar row (for example "2019 Toyota Camry: avg $X at Y miles, N listings"), the model predicts what that car would have listed for in 2020 at the same age and mileage. The log ratio becomes three parts:
+For every ForCar row (for example "2019 Lexus RX: avg $X at Y miles, N listings"), the model predicts what that car would have listed for in 2020 at the same age and mileage. The log ratio becomes three parts:
 
-`today = 2020 estimate × exp(age_factor[age] + make_offset + model_offset)`
+`today = 2020 estimate × exp(age_factor[age] + make_offset[band] + model_offset[band])`
 
-Offsets are shrunk toward zero when a make or model has few listings. It corrects price *levels* per model, while trim, mileage and history effects still come from the 2020 data.
+- `band` splits cars into under 8, 8–15 and 16+ years old, so a model's 20-year-old examples can't drag down the price of a 5-year-old one.
+- When ForCar names a family ("RX", "Silverado", "F-450") and the 2020 data has the versions ("RX 350", "Silverado 1500", "F-450 Super Duty"), the price applies to the whole family, weighted by listings. A few naming differences (BMW 328i → 3 Series, Mercedes ML-Class → M-Class, Ford E-350 → E-Series) are mapped by hand.
+- Offsets are shrunk toward zero when a make or model has few listings.
+
+It corrects price *levels* per model, while trim, mileage and history effects still come from the 2020 data. `artifacts/calibration_rows.csv` holds the working for every ForCar row, if you want to check a model.
 
 ## Run it on your Mac
 

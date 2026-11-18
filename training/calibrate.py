@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import re
 import subprocess
 import urllib.error
 import urllib.request
@@ -36,6 +37,7 @@ SHRINK_MAKE = 400     # listings needed before a make's own offset gets half wei
 SHRINK_MODEL = 200
 CLIP = np.log([0.5, 2.5])
 TOP_TRIMS = 5
+AGE_BANDS = [8, 16]     # offsets for cars under 8, 8-15 and 16+ years old
 
 
 def download(path) -> None:
@@ -64,15 +66,51 @@ def load_catalog():
     return cat
 
 
-def match_model(catalog, make_norm, model_norm, makes_by_norm):
-    make = makes_by_norm.get(make_norm)
+# ForCar and the 2020 data name a few models differently.
+ALIASES = {
+    ("mercedesbenz", "mlclass"): "M-Class",
+    ("mercedesbenz", "glclass"): "GL-Class",
+    ("mini", "hardtop"): "Cooper",
+    ("mini", "clubman"): "Cooper Clubman",
+    ("mini", "countryman"): "Countryman",
+}
+
+
+def nkey(s) -> str:
+    return norm_key(str(s).replace("&", " and "))
+
+
+def match_models(catalog, make_raw, model_raw, makes_by_norm):
+    """ForCar (make, model) -> (catalog make, [catalog models]).
+
+    ForCar often names a family ("RX", "Silverado", "F-450") where the 2020
+    data has the versions ("RX 350", "Silverado 1500", "F-450 Super Duty").
+    Then the ForCar price applies to the whole family, weighted by listings.
+    """
+    mk_n, mo = norm_key(make_raw), str(model_raw).strip()
+    if mk_n == "toyota" and mo.lower().startswith("scion "):      # "Toyota Scion xB"
+        mk_n, mo = "scion", mo[6:]
+    make = makes_by_norm.get(mk_n)
     if make is None:
-        return None, None
-    models = {norm_key(m): m for m in catalog[make]}
-    if model_norm in models:
-        return make, models[model_norm]
-    near = [m for k, m in models.items() if k.startswith(model_norm) or model_norm.startswith(k)]
-    return (make, near[0]) if len(near) == 1 else (make, None)
+        return None, []
+    models = catalog[make]
+    mo = ALIASES.get((mk_n, norm_key(mo)), mo)
+    if make == "BMW" and (m := re.fullmatch(r"M?(\d)\d\d[a-zA-Z]*", mo)):   # 328i -> 3 Series
+        mo = f"{m[1]} Series"
+    if make == "Ford" and re.fullmatch(r"E-?\d50", mo):                     # E-350 -> E-Series
+        mo = "E-Series"
+
+    by_norm = {nkey(m): m for m in models}
+    exact = by_norm.get(nkey(mo))
+    low = mo.lower()
+    family = [m for m in models if m != exact and (m.lower().startswith(low + " ") or m.lower().startswith(low + "-"))]
+    if exact:
+        family_n = sum(models[m]["n"] for m in family)
+        return make, [exact] if models[exact]["n"] >= family_n else [exact] + family
+    if family:
+        return make, family
+    near = [m for k, m in by_norm.items() if k.startswith(nkey(mo)) or nkey(mo).startswith(k)]
+    return make, near[:1] if len(near) == 1 else []
 
 
 def rows_for(make, model, entry, model_year, mileage, age):
@@ -124,13 +162,19 @@ def main():
 
     all_rows, owner, recs = [], [], []
     for r in fc.itertuples(index=False):
-        make, model = match_model(catalog, norm_key(r.make), norm_key(r.model), makes_by_norm)
-        if model is None:
+        make, models = match_models(catalog, r.make, r.model, makes_by_norm)
+        if not models:
             continue
         age = max(asof_frac - float(r.model_year), -1.0)
-        rows, w = rows_for(make, model, catalog[make][model], int(r.model_year), float(r.mileage), age)
-        recs.append({"make": make, "model_key": f"{make}|{model}", "age": age,
-                     "listings": float(r.listings), "price": float(r.price), "w": np.array(w, float)})
+        total_n = sum(catalog[make][m]["n"] for m in models)
+        rows, w = [], []
+        for m in models:
+            rm, wm = rows_for(make, m, catalog[make][m], int(r.model_year), float(r.mileage), age)
+            share = catalog[make][m]["n"] / total_n
+            rows += rm
+            w += [share * x / sum(wm) for x in wm]
+        recs.append({"make": make, "model_keys": {f"{make}|{m}": catalog[make][m]["n"] / total_n for m in models},
+                     "age": age, "listings": float(r.listings), "price": float(r.price), "w": np.array(w, float)})
         owner += [len(recs) - 1] * len(rows)
         all_rows += rows
 
@@ -153,16 +197,35 @@ def main():
     age_factor = by_age.rolling(3, center=True, min_periods=1).mean()
     d["res"] = d["lr"] - age_factor.to_numpy()[d["age_i"]]
 
-    # 2) make, then model, offsets on what's left - shrunk toward zero
-    g = d.groupby("make")
+    # 2) make, then model, offsets on what's left - shrunk toward zero, and
+    #    separate for young / mid / old cars (a model's 2009s can move very
+    #    differently from its 2019s)
+    d["band"] = np.searchsorted(AGE_BANDS, d["age"].to_numpy(), side="right")
+    g = d.groupby(["make", "band"])
     make_off = (g.apply(lambda x: np.sum(x["listings"] * x["res"]), include_groups=False)
                 / (g["listings"].sum() + SHRINK_MAKE))
-    d["res2"] = d["res"] - d["make"].map(make_off)
-    g = d.groupby("model_key")
-    model_off = (g.apply(lambda x: np.sum(x["listings"] * x["res2"]), include_groups=False)
-                 / (g["listings"].sum() + SHRINK_MODEL))
+    d["res2"] = d["res"] - make_off.reindex(pd.MultiIndex.from_arrays([d["make"], d["band"]])).to_numpy()
 
-    fitted = age_factor.to_numpy()[d["age_i"]] + d["make"].map(make_off) + d["model_key"].map(model_off)
+    ex = d.assign(model_key=d["model_keys"].map(lambda m: list(m.items()))).explode("model_key")
+    ex["share"] = ex["model_key"].str[1]
+    ex["model_key"] = ex["model_key"].str[0]
+    ex["wl"] = ex["listings"] * ex["share"]
+    g = ex.groupby(["model_key", "band"])
+    model_off = (g.apply(lambda x: np.sum(x["wl"] * x["res2"]), include_groups=False)
+                 / (g["wl"].sum() + SHRINK_MODEL))
+
+    d["family_offset"] = [sum(sh * model_off.get((k, b), 0.0) for k, sh in m.items())
+                          for m, b in zip(d["model_keys"], d["band"])]
+    d.drop(columns=["model_keys"]).assign(models=d["model_keys"].map(lambda m: ";".join(m))).round(4).to_csv(
+        ARTIFACTS / "calibration_rows.csv", index=False)     # per-row working, for checking
+    fitted = age_factor.to_numpy()[d["age_i"]] + (d["res"] - d["res2"]) + d["family_offset"]
+
+    def by_band(series):
+        out = {}
+        for (key, band), v in series.items():
+            out.setdefault(key, [0.0] * (len(AGE_BANDS) + 1))[int(band)] = round(float(v), 5)
+        return out
+
     before = wmedian(np.abs(d["lr"]), d["listings"])
     after = wmedian(np.abs(d["lr"] - fitted), d["listings"])
 
@@ -172,8 +235,9 @@ def main():
         "url": "https://forcar.org/open-data/",
         "license": "CC BY 4.0",
         "age_factor": [round(float(v), 5) for v in age_factor],
-        "make_offset": {k: round(float(v), 5) for k, v in make_off.items()},
-        "model_offset": {k: round(float(v), 5) for k, v in model_off.items()},
+        "age_bands": AGE_BANDS,
+        "make_offset": by_band(make_off),
+        "model_offset": by_band(model_off),
         "fit": {
             "rows_matched": int(len(d)), "rows_total": int(len(fc)),
             "listings_matched": int(d["listings"].sum()), "listings_total": int(fc["listings"].sum()),
