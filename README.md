@@ -2,12 +2,13 @@
 
 Estimate what a used car is worth from its year, make, model, trim, mileage and history, or paste a VIN. The site is fully static: the trained model runs **in your browser**. There's no server to fall asleep, nothing to maintain, and it's hosted free on GitHub Pages.
 
-**Live site:** `https://aaronh-uang.github.io/Predict_US_car_price/`
+**Live site:** `https://aaronh-uang.github.io/Predict_US_car_price/` (after the first deploy)
 
 ## What it does
 
 - **Make → model → trim picker.** Picking a trim auto-fills engine, horsepower, drivetrain and mpg from real listings.
 - **VIN lookup.** Decodes the VIN through NHTSA's free vPIC API, then matches it to the closest make, model and trim in the data.
+- **Location, options and certified pre-owned.** All optional. A blank ZIP gives a nationwide price for buyers who'd shop anywhere or have the car shipped, and "Not sure" leaves options out. During training, location and options are hidden on 15% of cars, so the model has a proper answer for "unknown". The likely range is wider when they're left out.
 - **Likely price range.** An 80% range calibrated on held-out cars, not just one number.
 - **Depreciation charts.** Value by mileage, and projected value over the next 8 years at your current pace of driving.
 - **Today's market vs 2020 market.** The model learns from 2020 listings. A per-model adjustment from current ForCar asking prices brings estimates up to date, and it refreshes weekly on its own.
@@ -16,9 +17,10 @@ Estimate what a used car is worth from its year, make, model, trim, mileage and 
 
 ```
 Kaggle CSV (9 GB, 3M listings)
-   │  training/prep.py       keep ~20 columns, used cars only, dedupe VINs → data/listings.parquet
+   │  training/prep.py       keep ~25 columns, used cars only, dedupe VINs → data/listings.parquet
    ▼
 training/train.py            LightGBM on log(price); make/model/trim as real categoricals;
+   │                         common options as 0/1 flags, location as the 3-digit ZIP area centre;
    │                         price can only fall with mileage/age/owners/damage (monotone);
    │                         80% range from a held-out calibration split
    ▼

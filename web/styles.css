@@ -61,6 +61,15 @@ input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-v
 }
 .fields { display: grid; gap: 12px; margin-top: 12px; grid-template-columns: 1fr; }
 .fields.trim-row { grid-template-columns: 2fr 1fr; }
+.fields.loc-row { grid-template-columns: 1fr 1fr; }
+.hint { margin: 6px 0 0; font-size: 12px; color: var(--ink-3); }
+.options-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px; }
+.options-head h3 { margin: 0; }
+.options-head select { width: auto; min-width: 140px; }
+.opt-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; margin-top: 10px; }
+.opt-list[hidden] { display: none; }
+.opt-list label { flex-direction: row; align-items: center; gap: 8px; font-weight: 400; color: var(--ink); font-size: 14px; }
+.opt-list input { width: 16px; height: 16px; accent-color: var(--accent); }
 .fields.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 560px) {
   .fields.trim-row { grid-template-columns: 1fr; }

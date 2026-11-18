@@ -77,8 +77,8 @@ export class Booster {
   }
 
   /** Price-range bucket from the calibration split (split-conformal by price level). */
-  range(raw) {
-    const { edges, lo, hi } = this.json.interval;
+  range(raw, unknown = false) {
+    const { edges, lo, hi } = (unknown && this.json.interval_unknown) || this.json.interval;
     let b = 0;
     while (b < edges.length && edges[b] <= raw) b++;
     return [Math.exp(raw + lo[b]), Math.exp(raw + hi[b])];
@@ -130,7 +130,10 @@ export class PriceModel {
     });
     const raw = this.booster.raw(x);
     const factor = market === "today" ? this.marketFactor(car.make, modelKey, age) : 1;
-    const [low, high] = this.booster.range(raw);
+    // Without a ZIP or options the estimate is less certain: use the wider range table.
+    const opts = this.booster.json.options || [];
+    const unknown = car.lat == null || opts.some((o) => car[o.flag] == null);
+    const [low, high] = this.booster.range(raw, unknown);
     return { price: Math.exp(raw) * factor, low: low * factor, high: high * factor, factor, age };
   }
 }

@@ -29,7 +29,7 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
-from common import ARTIFACTS, DATA_DIR, FEATURES, WEB_DATA, encode, norm_key, write_json
+from common import ARTIFACTS, DATA_DIR, WEB_DATA, encode, norm_key, write_json
 
 FORCAR_URL = "https://forcar.org/datasets/used-car-prices-by-model-year.csv"
 MAX_AGE = 30
@@ -128,6 +128,7 @@ def rows_for(make, model, entry, model_year, mileage, age):
                                          "engine_type", "horsepower", "engine_displacement",
                                          "city_fuel_economy", "highway_fuel_economy"]},
             "owner_count": None, "has_accidents": None, "frame_damaged": None, "salvage": None,
+            "is_cpo": 0.0,
         })
         weights.append(n)
     return rows, weights
@@ -181,7 +182,8 @@ def main():
     if not recs:
         raise SystemExit("No ForCar rows matched the catalog - check make/model names.")
 
-    X = encode(pd.DataFrame(all_rows, columns=FEATURES), vocab)
+    # ForCar averages cover every location and option mix: leave those unknown.
+    X = encode(pd.DataFrame(all_rows), vocab, meta["features"])
     pred = np.exp(booster.predict(X))
     owner = np.array(owner)
     for i, rec in enumerate(recs):

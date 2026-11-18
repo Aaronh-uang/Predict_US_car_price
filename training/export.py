@@ -133,14 +133,17 @@ def main():
         "numeric": meta["numeric"],
         "categorical": meta["categorical"],
         "vocab": meta["vocab"],
+        "options": meta.get("options", []),
         "interval": meta["interval"],
+        "interval_unknown": meta.get("interval_unknown", meta["interval"]),
         "trees": trees,
     }
     write_json(WEB_DATA / "model.json", model)
+    write_json(WEB_DATA / "zip3.json", meta.get("zip3", {}))
 
     m = meta["metrics"]
     write_json(WEB_DATA / "meta.json", {
-        "test": m["test"], "by_segment": m["by_segment"],
+        "test": m["test"], "unknown": m.get("unknown", {}), "by_segment": m["by_segment"],
         "importance": m["importance"][:10], "trees": m["trees"], "data": meta["data"],
     }, compact=False)
 

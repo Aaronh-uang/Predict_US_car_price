@@ -41,6 +41,19 @@
         <label>Mileage<input id="mileage" inputmode="numeric" autocomplete="off"></label>
       </div>
 
+      <div class="fields loc-row">
+        <label>ZIP code
+          <input id="zip" inputmode="numeric" maxlength="5" placeholder="Any — nationwide" autocomplete="postal-code">
+        </label>
+        <label>Certified pre-owned
+          <select id="cpo">
+            <option value="0">No</option>
+            <option value="1">Yes</option>
+          </select>
+        </label>
+      </div>
+      <p class="hint" id="zip-note">Leave ZIP blank if you'd buy from anywhere or have the car shipped.</p>
+
       <h3>History <span class="muted">— leave as "Not sure" if you don't know</span></h3>
       <div class="fields three">
         <label>Accidents
@@ -66,6 +79,15 @@
           </select>
         </label>
       </div>
+
+      <div class="options-head">
+        <h3>Options</h3>
+        <select id="opt-mode" aria-label="Options">
+          <option value="">Not sure</option>
+          <option value="pick">I'll choose</option>
+        </select>
+      </div>
+      <div id="opt-list" class="opt-list" hidden></div>
 
       <details id="specs">
         <summary>Specs <span class="muted" id="specs-note">auto-filled from the trim</span></summary>

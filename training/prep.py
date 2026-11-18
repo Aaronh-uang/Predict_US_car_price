@@ -30,6 +30,8 @@ SCHEMA = pa.schema([
     ("city_fuel_economy", pa.float64()), ("highway_fuel_economy", pa.float64()),
     ("owner_count", pa.float64()), ("has_accidents", pa.float64()),
     ("frame_damaged", pa.float64()), ("salvage", pa.float64()),
+    ("is_cpo", pa.float64()), ("options", pa.string()),
+    ("zip3", pa.string()), ("lat", pa.float64()), ("lon", pa.float64()), ("city", pa.string()),
 ])
 
 BOOL = {"true": 1.0, "false": 0.0, "1": 1.0, "0": 0.0}
@@ -70,6 +72,19 @@ def clean_chunk(raw: pd.DataFrame) -> pd.DataFrame:
         df[col] = num(col)
     for col in ["has_accidents", "frame_damaged", "salvage"]:
         df[col] = flag(col)
+
+    # Certified pre-owned: the raw file marks True or leaves it blank.
+    df["is_cpo"] = ((flag("is_cpo") == 1) | (flag("is_oemcpo") == 1)).astype("float64")
+
+    # "['Leather Seats', 'Sunroof/Moonroof']" -> "Leather Seats|Sunroof/Moonroof"
+    opts = raw["major_options"].astype("string").str.findall(r"'([^']+)'")
+    df["options"] = opts.map(lambda o: "|".join(sorted(set(o))) if isinstance(o, list) and o else pd.NA).astype("string")
+
+    z = raw["dealer_zip"].astype("string").str.extract(r"^(\d{3,5})", expand=False)
+    df["zip3"] = z.str.zfill(5).str[:3]
+    df["lat"], df["lon"] = num("latitude"), num("longitude")
+    df.loc[~df["lat"].between(17, 72) | ~df["lon"].between(-180, -60), ["lat", "lon"]] = np.nan
+    df["city"] = text("city")
 
     is_new = flag("is_new")
     keep = (

@@ -13,7 +13,7 @@ const SPEC_NUM = ["horsepower", "engine_displacement", "city_fuel_economy", "hig
 const NOW = currentYearFrac();
 const THIS_YEAR = new Date().getFullYear();
 
-const state = { market: "today", chart: "mileage", makes: [], makeData: {}, pm: null };
+const state = { market: "today", chart: "mileage", makes: [], makeData: {}, pm: null, zip3: {} };
 
 // ---------- catalog ----------
 async function loadMake(make) {
@@ -92,10 +92,24 @@ function readCar() {
     has_accidents: num($("#accidents").value),
     salvage: title === "salvage" ? 1 : title ? 0 : null,
     frame_damaged: title === "frame" ? 1 : title === "clean" ? 0 : null,
+    is_cpo: Number($("#cpo").value),
+    ...locationOf($("#zip").value),
   };
+  // Options: "Not sure" leaves every flag unknown; "I'll choose" makes unticked = no.
+  const pick = $("#opt-mode").value === "pick";
+  for (const o of state.pm.booster.json.options || []) {
+    car[o.flag] = pick ? Number(document.querySelector(`[data-opt="${o.flag}"]`).checked) : null;
+  }
   for (const k of SPEC_CAT) car[k] = document.querySelector(`[data-spec="${k}"]`).value || null;
   for (const k of SPEC_NUM) car[k] = num(document.querySelector(`[data-spec="${k}"]`).value);
   return car;
+}
+
+/** ZIP -> centre of its 3-digit area, or unknown (nationwide). */
+function locationOf(zip) {
+  const z = String(zip || "").replace(/\D/g, "");
+  const area = z.length >= 3 ? state.zip3[z.slice(0, 3)] : null;
+  return area ? { lat: area[0], lon: area[1], area: area[2] } : { lat: null, lon: null, area: null };
 }
 
 // ---------- render ----------
@@ -105,7 +119,8 @@ function update() {
   if (!car.make || !car.model) return;
   const p = pm.predict(car, { market: state.market });
 
-  $("#car-name").textContent = `${car.year} ${car.make} ${car.model}${car.trim ? " " + car.trim : ""} · ${int.format(car.mileage)} mi`;
+  $("#car-name").textContent = `${car.year} ${car.make} ${car.model}${car.trim ? " " + car.trim : ""} · ${int.format(car.mileage)} mi` +
+    (car.is_cpo ? " · certified" : "") + ` · ${car.area ?? "nationwide"}`;
   $("#price").textContent = nice(p.price);
   $("#range").innerHTML = `Likely <strong>${nice(p.low)} – ${nice(p.high)}</strong> <span class="muted">· 8 in 10 similar listings fall in this range</span>`;
 
@@ -123,6 +138,11 @@ function update() {
   if (state.market === "today" && cal && !(key in cal.model_offset)) notes.push(`No current asking prices for the ${car.model} in the ForCar data; using the ${car.make} and market-wide adjustment.`);
   if (car.salvage === 1) notes.push("Salvage and rebuilt titles are rare in the data, so treat this range as rough.");
   $("#notes").innerHTML = notes.map((n) => `<li>${n}</li>`).join("");
+
+  const zipRaw = $("#zip").value.replace(/\D/g, "");
+  $("#zip-note").textContent = car.area ? `Priced for the ${car.area} area.`
+    : zipRaw.length >= 3 ? `Not enough listings near ${zipRaw} — using a nationwide price.`
+    : "Leave ZIP blank if you'd buy from anywhere or have the car shipped.";
 
   drawChart(car, p);
   writeHash(car);
@@ -179,7 +199,8 @@ function renderAbout() {
   if (!meta) return;
   const t = meta.test;
   const d = meta.data;
-  const top = meta.importance.slice(0, 4).map((f) => LABELS[f.feature] || f.feature).join(", ");
+  const optLabel = Object.fromEntries((state.pm.booster.json.options || []).map((o) => [o.flag, o.label.toLowerCase()]));
+  const top = [...new Set(meta.importance.map((f) => LABELS[f.feature] || optLabel[f.feature] || f.feature))].slice(0, 4).join(", ");
   $("#about").innerHTML = `
     <div class="stats">
       <div class="stat"><b>${t.median_ape_pct.toFixed(1)}%</b><span>median error on held-out cars</span></div>
@@ -189,6 +210,7 @@ function renderAbout() {
     </div>
     <p>A gradient-boosted tree model (LightGBM, ${int.format(meta.trees)} trees) trained on ${int.format(d.listings)} used-car dealer listings from ${d.listed_years[0] === d.listed_years[1] ? d.listed_years[0] : d.listed_years.join("–")}, covering model years ${d.model_years[0]}–${d.model_years[1]}. Accuracy is measured on ${int.format(t.n)} cars the model never saw. The biggest drivers are ${top}. Price can only fall as mileage, age, owner count or damage go up, which keeps the curves above smooth.</p>
     <p>${cal ? `<strong>Today's market</strong> rescales the 2020 estimate for each model and age so it lines up with current average asking prices from ForCar (${int.format(cal.fit.listings_matched)} listings, ${fmtDate(cal.asof)}). On those averages, the typical gap drops from ${cal.fit.median_abs_gap_before_pct}% to ${cal.fit.median_abs_gap_after_pct}%. This is an adjustment from model-level averages, so it's less precise than the 2020 estimate.` : "Current-market calibration hasn't been run, so prices are in 2020 terms."}</p>
+    ${meta.unknown?.location_unknown ? `<p>Leaving ZIP or options as "anywhere" / "not sure" is fine: the median error becomes ${meta.unknown.location_unknown.median_ape_pct.toFixed(1)}% without a ZIP and ${meta.unknown.options_unknown.median_ape_pct.toFixed(1)}% without options, versus ${t.median_ape_pct.toFixed(1)}% with everything filled in.</p>` : ""}
     <p>Everything runs in your browser: the model is a ${(JSON.stringify(state.pm.booster.json).length / 1e6).toFixed(1)} MB file, and nothing you enter is sent anywhere except a VIN, which goes to NHTSA's public decoder.</p>`;
 }
 const LABELS = {
@@ -197,6 +219,7 @@ const LABELS = {
   wheel_system: "drivetrain", fuel_type: "fuel type", engine_type: "engine", transmission: "transmission",
   city_fuel_economy: "city mpg", highway_fuel_economy: "highway mpg", owner_count: "owners",
   has_accidents: "accident history", frame_damaged: "frame damage", salvage: "salvage title",
+  is_cpo: "certified pre-owned", lat: "location", lon: "location",
 };
 const fmtDate = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
@@ -253,10 +276,40 @@ function writeHash(car) {
   const q = new URLSearchParams();
   for (const k of ["year", "make", "model", "trim", "mileage", "owner_count", "has_accidents"]) if (car[k] != null) q.set(k, car[k]);
   if ($("#title").value) q.set("title", $("#title").value);
+  if ($("#zip").value) q.set("zip", $("#zip").value.replace(/\D/g, ""));
+  if (car.is_cpo) q.set("cpo", 1);
+  if ($("#opt-mode").value === "pick") {
+    q.set("opts", (state.pm.booster.json.options || []).map((o, i) => (car[o.flag] ? i : null)).filter((i) => i !== null).join("."));
+  }
   history.replaceState(null, "", "#" + q.toString());
 }
 function readHash() {
   return Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
+}
+
+// ---------- location / CPO / options ----------
+function setupExtras(h) {
+  const feats = state.pm.booster.json.features;
+  // Older models without these inputs: hide the controls.
+  if (!feats.includes("lat")) { $("#zip").closest(".fields").hidden = true; $("#zip-note").hidden = true; }
+  if (!feats.includes("is_cpo")) $("#cpo").closest("label").hidden = true;
+  const opts = state.pm.booster.json.options || [];
+  if (!opts.length) { $(".options-head").hidden = true; return; }
+
+  const list = $("#opt-list");
+  const picked = new Set((h.opts || "").split(".").filter(Boolean).map(Number));
+  opts.slice().map((o, i) => ({ ...o, i })).sort((a, b) => a.label.localeCompare(b.label)).forEach((o) => {
+    const lab = document.createElement("label");
+    lab.innerHTML = `<input type="checkbox" data-opt="${o.flag}"> ${o.label}`;
+    lab.querySelector("input").checked = picked.has(o.i);
+    lab.querySelector("input").addEventListener("change", update);
+    list.appendChild(lab);
+  });
+  if (h.zip) $("#zip").value = h.zip;
+  if (h.cpo) $("#cpo").value = "1";
+  if (h.opts !== undefined) $("#opt-mode").value = "pick";
+  list.hidden = $("#opt-mode").value !== "pick";
+  $("#opt-mode").addEventListener("change", () => { list.hidden = $("#opt-mode").value !== "pick"; update(); });
 }
 
 // ---------- setup ----------
@@ -265,6 +318,7 @@ async function init() {
     const [pm, idx] = await Promise.all([PriceModel.load(), fetch("data/catalog/index.json").then((r) => r.json())]);
     state.pm = pm;
     state.makes = idx.makes;
+    state.zip3 = await fetch("data/zip3.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
   } catch (e) {
     $("#price").textContent = "—";
     $("#range").textContent = "Couldn't load the model: " + e.message;
@@ -298,6 +352,7 @@ async function init() {
   if (h.owner_count) $("#owners").value = h.owner_count;
   if (h.has_accidents) $("#accidents").value = h.has_accidents;
   if (h.title) $("#title").value = h.title;
+  setupExtras(h);
 
   $("#make").addEventListener("change", async () => { await loadMake($("#make").value); fillModels(); fillTrims(); autofill(); update(); });
   $("#model").addEventListener("change", () => { fillTrims(); autofill(); update(); });
@@ -308,7 +363,8 @@ async function init() {
     const v = Number($("#mileage").value.replace(/[^0-9]/g, ""));
     $("#mileage").value = int.format(v || 0);
   });
-  for (const id of ["#owners", "#accidents", "#title"]) $(id).addEventListener("change", update);
+  for (const id of ["#owners", "#accidents", "#title", "#cpo"]) $(id).addEventListener("change", update);
+  $("#zip").addEventListener("input", update);
   $$("[data-spec]").forEach((e) => e.addEventListener(e.tagName === "SELECT" ? "change" : "input", () => {
     $("#specs-note").textContent = "edited";
     update();

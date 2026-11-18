@@ -17,8 +17,9 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
-from common import (ARTIFACTS, CATEGORICAL, FEATURES, LISTINGS, MONOTONE, NUMERIC,
-                    add_keys, build_vocab, encode, split_of, write_json)
+from common import (ARTIFACTS, CATEGORICAL, LISTINGS, MASK_UNKNOWN, MONOTONE, NUMERIC,
+                    add_keys, add_location, add_option_flags, build_vocab, choose_options,
+                    encode, feature_list, option_flag, split_of, write_json, zip3_table)
 
 PARAMS = dict(
     objective="regression",
@@ -79,13 +80,38 @@ def main():
     df["split"] = split_of(df["vin"])
     print(f"{len(df):,} listings: " + ", ".join(f"{k} {v:,}" for k, v in df["split"].value_counts().items()))
 
-    vocab = build_vocab(df[df["split"] == "train"])
+    train_rows = df["split"] == "train"
+    vocab = build_vocab(df[train_rows])
     for col in CATEGORICAL:
         print(f"  {col:<14} {len(vocab[col]):>6,} categories")
 
-    X = encode(df, vocab)
+    # Location: each listing's 3-digit ZIP area centre (what the site can know).
+    zip3 = zip3_table(df[train_rows])
+    df = add_location(df, zip3)
+    # Options: one 0/1 flag per common option.
+    option_labels = choose_options(df.loc[train_rows, "options"])
+    flags = [option_flag(o) for o in option_labels]
+    df = add_option_flags(df, option_labels)
+    FEATURES = feature_list(flags)
+    print(f"  location: {len(zip3):,} ZIP areas ({df['lat'].notna().mean():.0%} of listings placed)")
+    print(f"  options: {len(flags)} flags ({df['options'].notna().mean():.0%} of listings list options): "
+          + ", ".join(option_labels[:8]) + ("…" if len(option_labels) > 8 else ""))
+
+    X = encode(df, vocab, FEATURES)
     y = np.log(df["price"].to_numpy())
     part = {s: (df["split"] == s).to_numpy() for s in ["train", "valid", "calib", "test"]}
+
+    # Teach the model what "anywhere" and "not sure about options" mean by
+    # hiding them on a random share of training rows.
+    rng = np.random.default_rng(7)
+    loc_cols = [FEATURES.index("lat"), FEATURES.index("lon")]
+    opt_cols = [FEATURES.index(f) for f in flags]
+    tr = np.flatnonzero(part["train"])
+    hide_loc = tr[rng.random(len(tr)) < MASK_UNKNOWN]
+    hide_opt = tr[rng.random(len(tr)) < MASK_UNKNOWN]
+    X[np.ix_(hide_loc, loc_cols)] = np.nan
+    if opt_cols:
+        X[np.ix_(hide_opt, opt_cols)] = np.nan
 
     cat_idx = [FEATURES.index(c) for c in CATEGORICAL]
     params = dict(PARAMS, monotone_constraints=[MONOTONE.get(f, 0) for f in FEATURES])
@@ -99,21 +125,40 @@ def main():
     print(f"Trained {booster.best_iteration} trees in {time.time() - t0:,.0f}s")
 
     # Likely range: residual quantiles on the calibration split, per price level.
-    pred_cal = booster.predict(X[part["calib"]], num_iteration=booster.best_iteration)
-    resid = y[part["calib"]] - pred_cal
-    edges = np.quantile(pred_cal, np.linspace(0, 1, N_BUCKETS + 1)[1:-1])
-    bucket = np.searchsorted(edges, pred_cal, side="right")
-    q_lo = [float(np.quantile(resid[bucket == b], INTERVAL[0])) for b in range(N_BUCKETS)]
-    q_hi = [float(np.quantile(resid[bucket == b], INTERVAL[1])) for b in range(N_BUCKETS)]
+    def interval_table(Xc):
+        pc = booster.predict(Xc, num_iteration=booster.best_iteration)
+        res = y[part["calib"]] - pc
+        e = np.quantile(pc, np.linspace(0, 1, N_BUCKETS + 1)[1:-1])
+        bk = np.searchsorted(e, pc, side="right")
+        return {"level": INTERVAL, "edges": e.tolist(),
+                "lo": [float(np.quantile(res[bk == b], INTERVAL[0])) for b in range(N_BUCKETS)],
+                "hi": [float(np.quantile(res[bk == b], INTERVAL[1])) for b in range(N_BUCKETS)]}
+
+    def hide(Xs, loc=True, opt=True):
+        Xs = Xs.copy()
+        if loc:
+            Xs[:, loc_cols] = np.nan
+        if opt and opt_cols:
+            Xs[:, opt_cols] = np.nan
+        return Xs
+
+    # A wider table for estimates made without ZIP or options (the site's default).
+    interval = interval_table(X[part["calib"]])
+    interval_unknown = interval_table(hide(X[part["calib"]]))
 
     # Accuracy on the untouched test split.
-    pred_test = booster.predict(X[part["test"]], num_iteration=booster.best_iteration)
-    b_test = np.searchsorted(edges, pred_test, side="right")
+    def test_metrics(Xt, iv):
+        pt = booster.predict(Xt, num_iteration=booster.best_iteration)
+        bt = np.searchsorted(iv["edges"], pt, side="right")
+        p = np.exp(pt)
+        return p, metrics(y_test, p, p * np.exp(np.take(iv["lo"], bt)), p * np.exp(np.take(iv["hi"], bt)))
+
     y_test = df.loc[part["test"], "price"].to_numpy()
-    p_test = np.exp(pred_test)
-    lo = p_test * np.exp(np.take(q_lo, b_test))
-    hi = p_test * np.exp(np.take(q_hi, b_test))
-    m = metrics(y_test, p_test, lo, hi)
+    X_test = X[part["test"]]
+    p_test, m = test_metrics(X_test, interval)
+    unknown = {"location_unknown": test_metrics(hide(X_test, opt=False), interval_unknown)[1],
+               "options_unknown": test_metrics(hide(X_test, loc=False), interval_unknown)[1],
+               "both_unknown": test_metrics(hide(X_test), interval_unknown)[1]}
 
     seg = pd.cut(y_test, [0, 10_000, 20_000, 35_000, 60_000, np.inf],
                  labels=["<$10k", "$10–20k", "$20–35k", "$35–60k", "$60k+"])
@@ -127,15 +172,19 @@ def main():
     print("\nTest set:")
     for k, v in m.items():
         print(f"  {k:<22} {v:,.2f}")
+    for k, mm in unknown.items():
+        print(f"  {k:<22} median error {mm['median_ape_pct']:.2f}%, range coverage {mm['range_coverage_pct']:.1f}%")
     print("Top features:", ", ".join(f"{d['feature']} {d['share_pct']:.0f}%" for d in importance[:6]))
 
     ARTIFACTS.mkdir(exist_ok=True)
     booster.save_model(str(ARTIFACTS / "model.txt"), num_iteration=booster.best_iteration)
     write_json(ARTIFACTS / "meta.json", {
-        "features": FEATURES, "numeric": NUMERIC, "categorical": CATEGORICAL,
-        "vocab": vocab,
-        "interval": {"level": INTERVAL, "edges": edges.tolist(), "lo": q_lo, "hi": q_hi},
-        "metrics": {"test": m, "by_segment": by_segment, "importance": importance,
+        "features": FEATURES, "numeric": [f for f in FEATURES if f not in CATEGORICAL],
+        "categorical": CATEGORICAL, "vocab": vocab,
+        "options": [{"flag": f, "label": l} for f, l in zip(flags, option_labels)],
+        "zip3": zip3,
+        "interval": interval, "interval_unknown": interval_unknown,
+        "metrics": {"test": m, "unknown": unknown, "by_segment": by_segment, "importance": importance,
                     "trees": booster.best_iteration},
         "data": {
             "listings": int(len(df)),

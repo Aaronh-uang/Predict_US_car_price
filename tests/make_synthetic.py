@@ -24,6 +24,14 @@ CARS = [  # make, model, base 2020 price new, trims (name, premium), body, drive
     ("Mazda", "MAZDA3", 23000, [("Select", 1.0), ("Preferred", 1.07), ("Premium AWD", 1.2)], "Hatchback", "FWD", "Gasoline", "I4", 186, 2500, (26, 35)),
     ("Porsche", "911", 105000, [("Carrera", 1.0), ("Carrera S", 1.12), ("Turbo S", 1.8)], "Coupe", "RWD", "Gasoline", "H6", 443, 3000, (18, 24)),
 ]
+OPTIONS = {"Sunroof/Moonroof": 1.03, "Navigation System": 1.02, "Leather Seats": 1.03, "Premium Package": 1.05,
+           "Adaptive Cruise Control": 1.02, "Tow Package": 1.02, "Bluetooth": 1.0, "Backup Camera": 1.0}
+AREAS = [  # zip, lat, lon, city, price effect
+    ("94110", 37.75, -122.41, "San Francisco", 1.06), ("90012", 34.06, -118.24, "Los Angeles", 1.03),
+    ("77002", 29.76, -95.37, "Houston", 0.97), ("60601", 41.88, -87.62, "Chicago", 1.0),
+    ("10001", 40.75, -73.99, "New York", 1.02), ("30303", 33.75, -84.39, "Atlanta", 0.98),
+    ("80202", 39.75, -104.99, "Denver", 1.01), ("98101", 47.61, -122.33, "Seattle", 1.04),
+]
 # How each model's price moved from 2020 to "today" (used by the fake ForCar file).
 MARKET_MOVE = {"F-150": 1.45, "Silverado 1500": 1.40, "Model 3": 0.85, "Wrangler": 1.35, "911": 1.5}
 
@@ -64,13 +72,23 @@ def main():
         trans = rng.choice(["A", "M", "CVT", "Dual Clutch"], k, p=[0.75, 0.08, 0.15, 0.02])
         prem = np.array([trims[j][1] for j in t_i])
         price = price_2020(base, prem, age, miles, acc, salv, owners, trans == "M", rng)
+        # options, certified pre-owned, location
+        has = {o: rng.random(k) < 0.45 for o in OPTIONS}
+        for o, mult in OPTIONS.items():
+            price = price * np.where(has[o], mult, 1.0)
+        opt_known = rng.random(k) < 0.9
+        opt_str = ["[" + ", ".join(f"'{o}'" for o in OPTIONS if has[o][j]) + "]" if opt_known[j] else "" for j in range(k)]
+        cpo = (rng.random(k) < 0.12) & (age < 6)
+        price = price * np.where(cpo, 1.06, 1.0)
+        area = rng.integers(0, len(AREAS), k)
+        price = price * np.array([AREAS[a][4] for a in area])
         is_new = (age < 0.3) & (rng.random(k) < 0.7)
         def b(x):
             return np.where(np.isnan(x), "", np.where(x == 1, "True", "False"))
         rows.append(pd.DataFrame({
             "vin": [f"SYN{i:02d}{j:09d}" for j in range(k)],
             "back_legroom": "35.1 in",
-            "body_type": body, "city": "Berkeley",
+            "body_type": body, "city": [AREAS[a][3] for a in area],
             "city_fuel_economy": mpg[0], "daysonmarket": rng.integers(0, 400, k),
             "description": np.where(rng.random(k) < 0.3, 'Clean car, "one owner"\nCall now, great deal!', "[!@@Additional Info@@!]Power"),
             "engine_cylinders": eng or "", "engine_displacement": disp if disp else "",
@@ -78,7 +96,11 @@ def main():
             "has_accidents": b(acc), "highway_fuel_economy": mpg[1], "horsepower": hp,
             "is_new": np.where(is_new, "True", "False"),
             "listed_date": listed.strftime("%Y-%m-%d"), "listing_id": rng.integers(1e8, 3e8, k),
-            "major_options": "['Sunroof/Moonroof', 'Navigation System']",
+            "major_options": opt_str,
+            "is_cpo": np.where(cpo, "True", ""), "is_oemcpo": "",
+            "dealer_zip": [AREAS[a][0] for a in area],
+            "latitude": [AREAS[a][1] + rng.normal(0, 0.05) for a in area],
+            "longitude": [AREAS[a][2] + rng.normal(0, 0.05) for a in area],
             "make_name": make, "mileage": np.round(np.where(is_new, rng.integers(0, 30, k), miles)),
             "model_name": model, "owner_count": owners, "power": f"{hp} hp @ 5,500 RPM",
             "price": np.round(price), "salvage": b(salv), "torque": "",

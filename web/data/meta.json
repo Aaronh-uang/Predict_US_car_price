@@ -1,104 +1,136 @@
 {
   "test": {
     "n": 149352,
-    "mae_usd": 1670.1264943005733,
-    "median_abs_error_usd": 1107.2617753373897,
-    "rmse_usd": 3307.517782960372,
-    "mape_pct": 8.470513420175164,
-    "median_ape_pct": 5.913619846305898,
-    "within_10pct": 71.69773421179495,
-    "range_coverage_pct": 79.60054100380309
+    "mae_usd": 1554.9147777870355,
+    "median_abs_error_usd": 1004.8579433065111,
+    "rmse_usd": 3269.236857289409,
+    "mape_pct": 7.7804237726486205,
+    "median_ape_pct": 5.385286471592774,
+    "within_10pct": 75.0549038513043,
+    "range_coverage_pct": 79.78868712839467
+  },
+  "unknown": {
+    "location_unknown": {
+      "n": 149352,
+      "mae_usd": 1649.5513818319757,
+      "median_abs_error_usd": 1090.929158156343,
+      "rmse_usd": 3321.5453385660303,
+      "mape_pct": 8.390375687466268,
+      "median_ape_pct": 5.831905029839877,
+      "within_10pct": 72.24878140232471,
+      "range_coverage_pct": 80.96108522149017
+    },
+    "options_unknown": {
+      "n": 149352,
+      "mae_usd": 1628.8847785101293,
+      "median_abs_error_usd": 1044.2124263813353,
+      "rmse_usd": 3433.514151847172,
+      "mape_pct": 8.048495043359692,
+      "median_ape_pct": 5.605543514165514,
+      "within_10pct": 73.58053457603513,
+      "range_coverage_pct": 82.29283839520059
+    },
+    "both_unknown": {
+      "n": 149352,
+      "mae_usd": 1716.9224057937954,
+      "median_abs_error_usd": 1130.4689149799851,
+      "rmse_usd": 3467.518323573553,
+      "mape_pct": 8.651491920259076,
+      "median_ape_pct": 6.036702919047456,
+      "within_10pct": 70.81994215008838,
+      "range_coverage_pct": 79.74449622368633
+    }
   },
   "by_segment": {
     "<$10k": {
       "n": 22322,
-      "mae_usd": 1018.1402320438693,
-      "median_abs_error_usd": 779.3079742955524,
-      "rmse_usd": 1387.6691559197427,
-      "mape_pct": 15.95663404269513,
-      "median_ape_pct": 11.17275835760502,
-      "within_10pct": 45.50667502911925
+      "mae_usd": 953.9962831215452,
+      "median_abs_error_usd": 723.9829435478787,
+      "rmse_usd": 1302.473951271568,
+      "mape_pct": 14.84884586812363,
+      "median_ape_pct": 10.5206142215416,
+      "within_10pct": 48.01989069079832
     },
     "$10\u201320k": {
       "n": 57855,
-      "mae_usd": 1168.0740172199423,
-      "median_abs_error_usd": 907.5382465429266,
-      "rmse_usd": 1579.967296782234,
-      "mape_pct": 7.640336961826244,
-      "median_ape_pct": 5.808987154508765,
-      "within_10pct": 73.29703569267998
+      "mae_usd": 1054.3947044457448,
+      "median_abs_error_usd": 812.3636900173096,
+      "rmse_usd": 1437.4711423232866,
+      "mape_pct": 6.9027507352343145,
+      "median_ape_pct": 5.242919656002313,
+      "within_10pct": 77.35718606861982
     },
     "$20\u201335k": {
       "n": 48569,
-      "mae_usd": 1789.0056674870275,
-      "median_abs_error_usd": 1339.3725417915593,
-      "rmse_usd": 2484.229965059259,
-      "mape_pct": 6.704294183605144,
-      "median_ape_pct": 5.113116713774451,
-      "within_10pct": 78.51304329922378
+      "mae_usd": 1612.3450438763089,
+      "median_abs_error_usd": 1196.484791839157,
+      "rmse_usd": 2257.129222795128,
+      "mape_pct": 6.043066618751586,
+      "median_ape_pct": 4.542084611495083,
+      "within_10pct": 82.43529823550001
     },
     "$35\u201360k": {
       "n": 18402,
-      "mae_usd": 2842.078218330067,
-      "median_abs_error_usd": 2060.9777749468194,
-      "rmse_usd": 4167.760523250297,
-      "mape_pct": 6.582041860105928,
-      "median_ape_pct": 4.859511138496503,
-      "within_10pct": 80.54559287034017
+      "mae_usd": 2743.651017642115,
+      "median_abs_error_usd": 1949.7457579661132,
+      "rmse_usd": 4079.1771134884707,
+      "mape_pct": 6.333674163898345,
+      "median_ape_pct": 4.631371810256601,
+      "within_10pct": 81.81175959134876
     },
     "$60k+": {
       "n": 2204,
-      "mae_usd": 9047.524506782605,
-      "median_abs_error_usd": 4404.20540234341,
-      "rmse_usd": 19371.587609651357,
-      "mape_pct": 9.132868325460883,
-      "median_ape_pct": 5.793779262186455,
-      "within_10pct": 70.91651542649727
+      "mae_usd": 9588.86967868557,
+      "median_abs_error_usd": 4639.263244662379,
+      "rmse_usd": 20040.80399204347,
+      "mape_pct": 9.595869086740658,
+      "median_ape_pct": 6.161310356313876,
+      "within_10pct": 69.37386569872959
     }
   },
   "importance": [
     {
       "feature": "age",
-      "share_pct": 33.02623660043627
+      "share_pct": 32.43600617237147
     },
     {
       "feature": "horsepower",
-      "share_pct": 27.621374718260537
+      "share_pct": 23.934960755288202
     },
     {
       "feature": "mileage",
-      "share_pct": 15.760685257208863
+      "share_pct": 16.691285158564718
     },
     {
       "feature": "model_key",
-      "share_pct": 8.19668842743527
+      "share_pct": 8.272873018643603
     },
     {
       "feature": "wheel_system",
-      "share_pct": 4.4609808855779445
+      "share_pct": 7.2439025644610515
     },
     {
       "feature": "make",
-      "share_pct": 3.9260863057633237
+      "share_pct": 3.7256385982917752
     },
     {
       "feature": "trim_key",
-      "share_pct": 3.278773792906451
+      "share_pct": 2.928081785111762
+    },
+    {
+      "feature": "engine_displacement",
+      "share_pct": 1.190094506593896
     },
     {
       "feature": "engine_type",
-      "share_pct": 1.3309393609639555
+      "share_pct": 1.0987344376608448
     },
     {
       "feature": "body_type",
-      "share_pct": 1.2603140783972757
-    },
-    {
-      "feature": "owner_count",
-      "share_pct": 0.5177230497347377
+      "share_pct": 0.912028171858448
     }
   ],
-  "trees": 1198,
+  "trees": 1199,
   "data": {
     "listings": 1497767,
     "listed_years": [

@@ -28,9 +28,12 @@ RAW_COLUMNS = [
     "body_type", "wheel_system", "fuel_type", "transmission", "engine_type",
     "engine_displacement", "horsepower", "city_fuel_economy", "highway_fuel_economy",
     "has_accidents", "frame_damaged", "salvage", "owner_count",
+    "major_options", "is_cpo", "is_oemcpo", "dealer_zip", "latitude", "longitude", "city",
 ]
 
-# Model inputs, in the exact order the website builds its feature vector.
+# Model inputs, in the exact order the website builds its feature vector:
+# NUMERIC, then one 0/1 flag per common option (chosen from the data at
+# training time, saved in meta.json), then CATEGORICAL.
 NUMERIC = [
     "age",                   # years between model year and listing date (fractional)
     "mileage",
@@ -42,6 +45,9 @@ NUMERIC = [
     "has_accidents",         # 1 / 0 / missing
     "frame_damaged",
     "salvage",
+    "is_cpo",                # certified pre-owned 1 / 0
+    "lat",                   # centre of the buyer's 3-digit ZIP area; missing = anywhere
+    "lon",
 ]
 CATEGORICAL = [
     "make",
@@ -53,7 +59,14 @@ CATEGORICAL = [
     "transmission",
     "engine_type",
 ]
-FEATURES = NUMERIC + CATEGORICAL
+FEATURES = NUMERIC + CATEGORICAL     # without option flags; see feature_list()
+
+# Options: keep the common ones (seen on 4-96% of listings), at most this many.
+MAX_OPTIONS = 30
+# Share of training rows whose location / options are hidden so the model
+# learns a sensible answer for "not sure" and "anywhere".
+MASK_UNKNOWN = 0.15
+ZIP3_MIN_LISTINGS = 20
 
 # Price can only go down as these go up (all else equal). This keeps the
 # depreciation curves on the website smooth and sensible.
@@ -103,15 +116,68 @@ def build_vocab(df: pd.DataFrame) -> dict[str, list[str]]:
     return vocab
 
 
-def encode(df: pd.DataFrame, vocab: dict[str, list[str]]) -> np.ndarray:
-    """DataFrame -> float matrix in FEATURES order. Unknown categories become NaN."""
-    X = np.empty((len(df), len(FEATURES)), dtype=np.float64)
-    for j, col in enumerate(NUMERIC):
-        X[:, j] = pd.to_numeric(df[col], errors="coerce").to_numpy(dtype=np.float64, na_value=np.nan)
-    for k, col in enumerate(CATEGORICAL):
-        lookup = {v: i for i, v in enumerate(vocab[col])}
-        codes = df[col].astype("object").map(lookup)
-        X[:, len(NUMERIC) + k] = pd.to_numeric(codes, errors="coerce").to_numpy(dtype=np.float64, na_value=np.nan)
+def feature_list(option_flags: list[str]) -> list[str]:
+    return NUMERIC + option_flags + CATEGORICAL
+
+
+def option_flag(label: str) -> str:
+    return "opt_" + slug(label).replace("-", "_")
+
+
+def choose_options(options: pd.Series) -> list[str]:
+    """Most common options, as labels. `options` holds 'a|b|c' strings or missing."""
+    have = options.dropna()
+    counts = have.str.split("|").explode().value_counts()
+    share = counts / max(len(have), 1)
+    keep = share[(share >= 0.04) & (share <= 0.96)]
+    return [str(v) for v in keep.index[:MAX_OPTIONS]]
+
+
+def add_option_flags(df: pd.DataFrame, labels: list[str]) -> pd.DataFrame:
+    """One 0/1 column per option; missing when the listing has no options data."""
+    df = df.copy()
+    wrapped = "|" + df["options"].astype("string") + "|"
+    known = df["options"].notna().to_numpy()
+    for label in labels:
+        hit = wrapped.str.contains("|" + label + "|", regex=False).fillna(False).to_numpy(dtype=float)
+        df[option_flag(label)] = np.where(known, hit, np.nan)
+    return df
+
+
+def zip3_table(df: pd.DataFrame) -> dict[str, list]:
+    """3-digit ZIP -> [lat, lon, most common city]. Only areas with enough listings."""
+    d = df.dropna(subset=["zip3", "lat", "lon"])
+    g = d.groupby("zip3")
+    n = g.size()
+    out = {}
+    for z, grp in g:
+        if n[z] < ZIP3_MIN_LISTINGS:
+            continue
+        city = grp["city"].mode()
+        out[str(z)] = [round(float(grp["lat"].median()), 3), round(float(grp["lon"].median()), 3),
+                       str(city.iloc[0]) if len(city) else ""]
+    return out
+
+
+def add_location(df: pd.DataFrame, table: dict[str, list]) -> pd.DataFrame:
+    """Replace each listing's exact position with its ZIP3 area centre, as the site does."""
+    df = df.copy()
+    z = df["zip3"].astype("object")
+    df["lat"] = z.map(lambda k: table[k][0] if k in table else np.nan).astype(float)
+    df["lon"] = z.map(lambda k: table[k][1] if k in table else np.nan).astype(float)
+    return df
+
+
+def encode(df: pd.DataFrame, vocab: dict[str, list[str]], features: list[str] = FEATURES) -> np.ndarray:
+    """DataFrame -> float matrix in `features` order. Unknown categories become NaN."""
+    X = np.empty((len(df), len(features)), dtype=np.float64)
+    for j, col in enumerate(features):
+        if col in CATEGORICAL:
+            lookup = {v: i for i, v in enumerate(vocab[col])}
+            vals = df[col].astype("object").map(lookup) if col in df else pd.Series(np.nan, index=df.index)
+        else:
+            vals = df[col] if col in df else pd.Series(np.nan, index=df.index)
+        X[:, j] = pd.to_numeric(vals, errors="coerce").to_numpy(dtype=np.float64, na_value=np.nan)
     return X
 
 
