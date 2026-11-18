@@ -7,7 +7,7 @@ __pycache__/
 .venv/
 
 # Raw and intermediate data (the Kaggle CSV is 9 GB)
-data/
+/data/
 *.csv
 
 # VS Code Dev Containers

@@ -1,0 +1,113 @@
+{
+  "test": {
+    "n": 149352,
+    "mae_usd": 1670.1264943005733,
+    "median_abs_error_usd": 1107.2617753373897,
+    "rmse_usd": 3307.517782960372,
+    "mape_pct": 8.470513420175164,
+    "median_ape_pct": 5.913619846305898,
+    "within_10pct": 71.69773421179495,
+    "range_coverage_pct": 79.60054100380309
+  },
+  "by_segment": {
+    "<$10k": {
+      "n": 22322,
+      "mae_usd": 1018.1402320438693,
+      "median_abs_error_usd": 779.3079742955524,
+      "rmse_usd": 1387.6691559197427,
+      "mape_pct": 15.95663404269513,
+      "median_ape_pct": 11.17275835760502,
+      "within_10pct": 45.50667502911925
+    },
+    "$10\u201320k": {
+      "n": 57855,
+      "mae_usd": 1168.0740172199423,
+      "median_abs_error_usd": 907.5382465429266,
+      "rmse_usd": 1579.967296782234,
+      "mape_pct": 7.640336961826244,
+      "median_ape_pct": 5.808987154508765,
+      "within_10pct": 73.29703569267998
+    },
+    "$20\u201335k": {
+      "n": 48569,
+      "mae_usd": 1789.0056674870275,
+      "median_abs_error_usd": 1339.3725417915593,
+      "rmse_usd": 2484.229965059259,
+      "mape_pct": 6.704294183605144,
+      "median_ape_pct": 5.113116713774451,
+      "within_10pct": 78.51304329922378
+    },
+    "$35\u201360k": {
+      "n": 18402,
+      "mae_usd": 2842.078218330067,
+      "median_abs_error_usd": 2060.9777749468194,
+      "rmse_usd": 4167.760523250297,
+      "mape_pct": 6.582041860105928,
+      "median_ape_pct": 4.859511138496503,
+      "within_10pct": 80.54559287034017
+    },
+    "$60k+": {
+      "n": 2204,
+      "mae_usd": 9047.524506782605,
+      "median_abs_error_usd": 4404.20540234341,
+      "rmse_usd": 19371.587609651357,
+      "mape_pct": 9.132868325460883,
+      "median_ape_pct": 5.793779262186455,
+      "within_10pct": 70.91651542649727
+    }
+  },
+  "importance": [
+    {
+      "feature": "age",
+      "share_pct": 33.02623660043627
+    },
+    {
+      "feature": "horsepower",
+      "share_pct": 27.621374718260537
+    },
+    {
+      "feature": "mileage",
+      "share_pct": 15.760685257208863
+    },
+    {
+      "feature": "model_key",
+      "share_pct": 8.19668842743527
+    },
+    {
+      "feature": "wheel_system",
+      "share_pct": 4.4609808855779445
+    },
+    {
+      "feature": "make",
+      "share_pct": 3.9260863057633237
+    },
+    {
+      "feature": "trim_key",
+      "share_pct": 3.278773792906451
+    },
+    {
+      "feature": "engine_type",
+      "share_pct": 1.3309393609639555
+    },
+    {
+      "feature": "body_type",
+      "share_pct": 1.2603140783972757
+    },
+    {
+      "feature": "owner_count",
+      "share_pct": 0.5177230497347377
+    }
+  ],
+  "trees": 1198,
+  "data": {
+    "listings": 1497767,
+    "listed_years": [
+      2019,
+      2020
+    ],
+    "model_years": [
+      1995,
+      2021
+    ]
+  }
+}
