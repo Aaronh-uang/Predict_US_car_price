@@ -122,11 +122,15 @@ function update() {
   $("#car-name").textContent = `${car.year} ${car.make} ${car.model}${car.trim ? " " + car.trim : ""} · ${int.format(car.mileage)} mi` +
     (car.is_cpo ? " · certified" : "") + ` · ${car.area ?? "nationwide"}`;
   $("#price").textContent = nice(p.price);
-  $("#range").innerHTML = `Likely <strong>${nice(p.low)} – ${nice(p.high)}</strong> <span class="muted">· 8 in 10 similar listings fall in this range</span>`;
+  const bench = pm.benchmark;
+  const todayMode = state.market === "today" && pm.calibration;
+  $("#range").innerHTML = `Likely <strong>${nice(p.low)} – ${nice(p.high)}</strong> <span class="muted">· ${
+    todayMode && bench ? "wider today: 2026 prices are estimated, see How it works" : "8 in 10 similar listings fall in this range"}</span>`;
 
   const cal = pm.calibration;
   $("#market-note").textContent = state.market === "today" && cal
-    ? `2020 listing prices × ${p.factor.toFixed(2)}, matched to current asking prices for this model and age (ForCar, ${fmtDate(cal.asof)}).`
+    ? `2020 listing prices × ${p.factor.toFixed(2)}, matched to current asking prices for this model and age (ForCar, ${fmtDate(cal.asof)}).` +
+      (bench ? ` Today's estimates are typically about ${Math.round(bench.all.median_gap_pct)}% from Kelley Blue Book's fair price.` : "")
     : `What a car this age with these miles listed for in ${pm.meta?.data?.listed_years?.[1] ?? 2020}, before the 2021–22 price spike.`;
 
   const notes = [];
@@ -201,15 +205,24 @@ function renderAbout() {
   const d = meta.data;
   const optLabel = Object.fromEntries((state.pm.booster.json.options || []).map((o) => [o.flag, o.label.toLowerCase()]));
   const top = [...new Set(meta.importance.map((f) => LABELS[f.feature] || optLabel[f.feature] || f.feature))].slice(0, 4).join(", ");
+  const b = state.pm.benchmark;
   $("#about").innerHTML = `
+    <h3 class="stats-title">On 2020 listings <span class="muted">· ${int.format(t.n)} cars the model never saw</span></h3>
     <div class="stats">
-      <div class="stat"><b>${t.median_ape_pct.toFixed(1)}%</b><span>median error on held-out cars</span></div>
+      <div class="stat"><b>${t.median_ape_pct.toFixed(1)}%</b><span>median error</span></div>
       <div class="stat"><b>${t.within_10pct.toFixed(0)}%</b><span>of estimates within 10%</span></div>
-      <div class="stat"><b>${usd.format(t.mae_usd)}</b><span>average error (MAE)</span></div>
+      <div class="stat"><b>${usd.format(t.mae_usd)}</b><span>average error</span></div>
       <div class="stat"><b>${t.range_coverage_pct.toFixed(0)}%</b><span>of cars inside the likely range</span></div>
     </div>
+    ${b ? `<h3 class="stats-title">Today's market, against Kelley Blue Book <span class="muted">· ${int.format(b.all.n)} AutoTrader listings, ${fmtDate(b.window[0])} – ${fmtDate(b.window[1])}</span></h3>
+    <div class="stats">
+      <div class="stat"><b>${b.all.median_gap_pct.toFixed(1)}%</b><span>median gap to KBB's fair price</span></div>
+      <div class="stat"><b>${b.all.within_10pct.toFixed(0)}%</b><span>of estimates within 10% of KBB</span></div>
+      <div class="stat"><b>${b.all.median_signed_pct > 0 ? "+" : ""}${b.all.median_signed_pct.toFixed(1)}%</b><span>typical lean vs KBB (− means lower)</span></div>
+      <div class="stat"><b>×${b.today_range_scale.toFixed(1)}</b><span>wider likely range for today's prices</span></div>
+    </div>` : ""}
     <p>A gradient-boosted tree model (LightGBM, ${int.format(meta.trees)} trees) trained on ${int.format(d.listings)} used-car dealer listings from ${d.listed_years[0] === d.listed_years[1] ? d.listed_years[0] : d.listed_years.join("–")}, covering model years ${d.model_years[0]}–${d.model_years[1]}. Accuracy is measured on ${int.format(t.n)} cars the model never saw. The biggest drivers are ${top}. Price can only fall as mileage, age, owner count or damage go up, which keeps the curves above smooth.</p>
-    <p>${cal ? `<strong>Today's market</strong> rescales the 2020 estimate for each model and age so it lines up with current average asking prices from ForCar (${int.format(cal.fit.listings_matched)} listings, ${fmtDate(cal.asof)}). On those averages, the typical gap drops from ${cal.fit.median_abs_gap_before_pct}% to ${cal.fit.median_abs_gap_after_pct}%. This is an adjustment from model-level averages, so it's less precise than the 2020 estimate.` : "Current-market calibration hasn't been run, so prices are in 2020 terms."}</p>
+    <p>${cal ? `<strong>Today's market</strong> rescales the 2020 estimate for each model and age so it lines up with current average asking prices from ForCar (${int.format(cal.fit.listings_matched)} listings, ${fmtDate(cal.asof)}). On those averages, the typical gap drops from ${cal.fit.median_abs_gap_before_pct}% to ${cal.fit.median_abs_gap_after_pct}%. This is an adjustment from model-level averages, so it's less precise than the 2020 estimate${b ? `: checked weekly against KBB's fair-price range on current AutoTrader listings (free sample from <a href="https://github.com/rebrowser/autotrader-dataset">Rebrowser</a>), today's estimates sit a median ${b.all.median_gap_pct.toFixed(1)}% from KBB, so the likely range is widened ×${b.today_range_scale.toFixed(1)} to stay honest` : ""}.` : "Current-market calibration hasn't been run, so prices are in 2020 terms."}</p>
     ${meta.unknown?.location_unknown ? `<p>Leaving ZIP or options as "anywhere" / "not sure" is fine: the median error becomes ${meta.unknown.location_unknown.median_ape_pct.toFixed(1)}% without a ZIP and ${meta.unknown.options_unknown.median_ape_pct.toFixed(1)}% without options, versus ${t.median_ape_pct.toFixed(1)}% with everything filled in.</p>` : ""}
     <p>Everything runs in your browser: the model is a ${(JSON.stringify(state.pm.booster.json).length / 1e6).toFixed(1)} MB file, and nothing you enter is sent anywhere except a VIN, which goes to NHTSA's public decoder.</p>`;
 }

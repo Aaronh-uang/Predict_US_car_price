@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "17 14 * * 1"     # Mondays 14:17 UTC: refresh today's-market prices
+    - cron: "17 14 * * 1"     # Mondays 14:17 UTC: refresh today's-market prices and the KBB check
   workflow_dispatch:
 
 permissions:
@@ -27,16 +27,28 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Refresh ForCar calibration
+      - name: Install training dependencies
+        id: deps
         if: github.event_name != 'push' && hashFiles('artifacts/model.txt') != ''
+        run: pip install -r training/requirements.txt
+
+      - name: Refresh ForCar calibration
+        if: steps.deps.outcome == 'success'
         continue-on-error: true      # if ForCar is down, keep last week's numbers
+        run: python training/calibrate.py
+
+      - name: Score today's estimates against KBB
+        if: steps.deps.outcome == 'success'
+        continue-on-error: true      # if the sample is unavailable, keep last week's numbers
+        run: python training/benchmark.py
+
+      - name: Commit refreshed data
+        if: steps.deps.outcome == 'success'
         run: |
-          pip install -r training/requirements.txt
-          python training/calibrate.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add web/data/calibration.json
-          git diff --cached --quiet || git commit -m "Refresh today's-market prices from ForCar"
+          git add web/data/calibration.json web/data/benchmark.json benchmark/
+          git diff --cached --quiet || git commit -m "Weekly refresh: today's-market prices and KBB check"
           git push
 
       - uses: actions/setup-node@v4

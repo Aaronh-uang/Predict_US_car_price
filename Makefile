@@ -1,7 +1,7 @@
 PY ?= .venv/bin/python
 CSV ?= data/used_cars_data.csv
 
-.PHONY: setup prep train export calibrate all serve test demo clean
+.PHONY: setup prep train export calibrate benchmark all serve test demo clean
 
 setup:            ## create .venv and install training dependencies
 	python3 -m venv .venv
@@ -20,7 +20,10 @@ export:           ## write web/data/model.json + catalog
 calibrate:        ## today's-market adjustment from ForCar
 	$(PY) training/calibrate.py
 
-all: prep train export calibrate test
+benchmark:        ## score today's estimates against KBB (free AutoTrader sample)
+	$(PY) training/benchmark.py
+
+all: prep train export calibrate benchmark test
 
 test:             ## check the browser model matches LightGBM
 	node tests/parity.mjs

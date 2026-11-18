@@ -181,6 +181,15 @@ def encode(df: pd.DataFrame, vocab: dict[str, list[str]], features: list[str] = 
     return X
 
 
+def market_factor(cal: dict, make: str, model_key: str, age: float) -> float:
+    """2020 -> today multiplier from calibration.json (mirrors web/js/model.js)."""
+    import math
+    a = max(0, min(len(cal["age_factor"]) - 1, round(age)))
+    band = sum(age >= b for b in cal.get("age_bands", []))
+    pick = lambda v: v[band] if isinstance(v, list) else (v or 0.0)
+    return math.exp(cal["age_factor"][a] + pick(cal["make_offset"].get(make, 0)) + pick(cal["model_offset"].get(model_key, 0)))
+
+
 def split_of(vin: pd.Series) -> pd.Series:
     """Deterministic split from the VIN hash: 80 train / 5 valid / 5 calib / 10 test."""
     h = pd.util.hash_pandas_object(vin.astype("string"), index=False).to_numpy() % 100

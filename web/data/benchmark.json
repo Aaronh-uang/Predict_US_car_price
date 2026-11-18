@@ -1,0 +1,39 @@
+{
+  "asof": "2026-11-18",
+  "window": [
+    "2026-09-18",
+    "2026-11-17"
+  ],
+  "source": "Rebrowser AutoTrader sample (KBB fair-price range), github.com/rebrowser/autotrader-dataset",
+  "how": "Nationwide price, options not set, today's market, compared with the middle of KBB's fair-price range.",
+  "all": {
+    "n": 6359,
+    "median_gap_pct": 12.7,
+    "median_signed_pct": -4.5,
+    "within_10pct": 41.0,
+    "kbb_inside_range_pct": 51.3
+  },
+  "matched_of": 7407,
+  "today_range_scale": 2.36,
+  "model_years_2015_2021": {
+    "n": 2717,
+    "median_gap_pct": 13.4,
+    "median_signed_pct": -9.0,
+    "within_10pct": 38.2,
+    "kbb_inside_range_pct": 50.6
+  },
+  "model_years_2022_plus": {
+    "n": 2849,
+    "median_gap_pct": 11.2,
+    "median_signed_pct": -2.1,
+    "within_10pct": 46.0,
+    "kbb_inside_range_pct": 48.8
+  },
+  "history": [
+    {
+      "date": "2026-11-18",
+      "n": 6359,
+      "median_gap_pct": 12.7
+    }
+  ]
+}

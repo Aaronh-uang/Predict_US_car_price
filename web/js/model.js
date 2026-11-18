@@ -77,28 +77,29 @@ export class Booster {
   }
 
   /** Price-range bucket from the calibration split (split-conformal by price level). */
-  range(raw, unknown = false) {
+  range(raw, unknown = false, scale = 1) {
     const { edges, lo, hi } = (unknown && this.json.interval_unknown) || this.json.interval;
     let b = 0;
     while (b < edges.length && edges[b] <= raw) b++;
-    return [Math.exp(raw + lo[b]), Math.exp(raw + hi[b])];
+    return [Math.exp(raw + lo[b] * scale), Math.exp(raw + hi[b] * scale)];
   }
 }
 
 export class PriceModel {
-  constructor(model, calibration, meta) {
+  constructor(model, calibration, meta, benchmark = null) {
     this.booster = new Booster(model);
     this.calibration = calibration;
     this.meta = meta;
+    this.benchmark = benchmark;   // today's accuracy vs KBB (training/benchmark.py)
   }
 
   static async load(base = "data/") {
     const get = (f) => fetch(base + f).then((r) => (r.ok ? r.json() : null));
-    const [model, calibration, meta] = await Promise.all([
-      get("model.json"), get("calibration.json"), get("meta.json"),
+    const [model, calibration, meta, benchmark] = await Promise.all([
+      get("model.json"), get("calibration.json"), get("meta.json"), get("benchmark.json").catch(() => null),
     ]);
     if (!model) throw new Error("model.json missing - run the training pipeline first");
-    return new PriceModel(model, calibration, meta);
+    return new PriceModel(model, calibration, meta, benchmark);
   }
 
   /** Multiplier from 2020-market to today's market for this car. */
@@ -133,7 +134,9 @@ export class PriceModel {
     // Without a ZIP or options the estimate is less certain: use the wider range table.
     const opts = this.booster.json.options || [];
     const unknown = car.lat == null || opts.some((o) => car[o.flag] == null);
-    const [low, high] = this.booster.range(raw, unknown);
+    // Today's-market ranges are widened so they hold KBB's value ~80% of the time.
+    const scale = market === "today" ? this.benchmark?.today_range_scale ?? 1 : 1;
+    const [low, high] = this.booster.range(raw, unknown, scale);
     return { price: Math.exp(raw) * factor, low: low * factor, high: high * factor, factor, age };
   }
 }
