@@ -2,7 +2,7 @@
 
 Estimate what a used car is worth from its year, make, model, trim, mileage and history, or paste a VIN. The site is fully static: the trained model runs **in your browser**. There's no server to fall asleep, nothing to maintain, and it's hosted free on GitHub Pages.
 
-**Live site:** `https://aaronh-uang.github.io/Predict_US_car_price/` (after the first deploy)
+**Live site:** `[https://aaronh-uang.github.io/Predict_US_car_price/](https://aaronh-uang.github.io/Predict_US_car_price/#year=2021&make=Ford&model=F-150&trim=XLT+SuperCrew+4WD&mileage=60000)`
 
 ## What it does
 
